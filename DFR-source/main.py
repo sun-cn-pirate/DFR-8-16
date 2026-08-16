@@ -173,7 +173,11 @@ def write_summary(rows: list[dict[str, float | str]], report_dir: Path, args: ar
     report_dir.mkdir(parents=True, exist_ok=True)
     csv_path = report_dir / "dfr_mvtec_summary.csv"
     with csv_path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=METRIC_FIELDS)
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=METRIC_FIELDS,
+            lineterminator="\n",
+        )
         writer.writeheader()
         writer.writerows(rows)
 

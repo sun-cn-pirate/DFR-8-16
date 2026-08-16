@@ -90,6 +90,10 @@ class CliTests(unittest.TestCase):
             self.assertTrue((Path(temp_dir) / "dfr_mvtec_summary.csv").is_file())
             self.assertTrue((Path(temp_dir) / "dfr_mvtec_summary.md").is_file())
             self.assertTrue((Path(temp_dir) / "environment.json").is_file())
+            self.assertNotIn(
+                b"\r\n",
+                (Path(temp_dir) / "dfr_mvtec_summary.csv").read_bytes(),
+            )
             loaded = load_summary(Path(temp_dir))
             self.assertEqual(loaded[0]["category"], "bottle")
             self.assertAlmostEqual(float(loaded[0]["seg_auc"]), 0.81)
