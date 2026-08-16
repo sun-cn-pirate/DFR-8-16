@@ -46,7 +46,9 @@ and extract the 15 category folders under `data/mvtec_ad`. If the official form
 is unavailable, the approved research fallback can be downloaded with:
 
 ```bash
-conda run -n dfr python scripts/download_mvtec.py --output data/mvtec_ad
+conda run -n dfr python scripts/download_mvtec.py \
+  --output data/mvtec_ad \
+  --workers 32
 ```
 
 Always validate the directory structure, published image counts, and masks

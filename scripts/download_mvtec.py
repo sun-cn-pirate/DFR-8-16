@@ -12,7 +12,15 @@ from huggingface_hub import snapshot_download
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, default=Path("data/mvtec_ad"))
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=32,
+        help="Number of concurrent Hugging Face downloads (default: 32)",
+    )
     args = parser.parse_args()
+    if args.workers < 1:
+        parser.error("--workers must be at least 1")
     output = args.output.expanduser().resolve()
     output.mkdir(parents=True, exist_ok=True)
     snapshot_download(
@@ -26,6 +34,7 @@ def main() -> None:
             "*/license.txt",
             "*/readme.txt",
         ],
+        max_workers=args.workers,
     )
     print(output)
 
