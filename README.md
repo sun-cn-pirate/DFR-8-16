@@ -26,15 +26,18 @@ the smoke tests are validated.
 
 ## Environment
 
-The tested host has an NVIDIA RTX 4090, CUDA 13.2, Python 3.12, PyTorch
-2.13.0+cu132, and torchvision 0.28.0+cu132. Create a lightweight virtual
-environment that reuses the host's CUDA-enabled PyTorch, then install the
-remaining packages directly from the official Python Package Index:
+The tested host has an NVIDIA RTX 4090, CUDA 13.2, Python 3.12.11, PyTorch
+2.13.0+cu132, and torchvision 0.28.0+cu132. Clone the host's `py312` Conda
+environment so the CUDA-enabled PyTorch installation is reused, then install
+the remaining packages directly from the official Python Package Index:
 
 ```bash
-python3 -m venv --system-site-packages .venv
-.venv/bin/python -m pip install -i https://pypi.org/simple -r requirements.txt
+conda create -n dfr --clone py312 -y
+conda run -n dfr python -m pip install -i https://pypi.org/simple -r requirements.txt
 ```
+
+All setup, validation, testing, and training commands below run exclusively in
+the `dfr` environment. The pre-existing project `.venv` is not used.
 
 ## Dataset
 
@@ -43,14 +46,14 @@ and extract the 15 category folders under `data/mvtec_ad`. If the official form
 is unavailable, the approved research fallback can be downloaded with:
 
 ```bash
-.venv/bin/python scripts/download_mvtec.py --output data/mvtec_ad
+conda run -n dfr python scripts/download_mvtec.py --output data/mvtec_ad
 ```
 
 Always validate the directory structure, published image counts, and masks
 before running an experiment:
 
 ```bash
-.venv/bin/python scripts/validate_mvtec.py data/mvtec_ad \
+conda run -n dfr python scripts/validate_mvtec.py data/mvtec_ad \
   --json reports/mvtec_validation.json
 ```
 
@@ -61,7 +64,7 @@ Neither the dataset nor generated model weights are tracked by Git.
 One-epoch smoke test across all 15 categories:
 
 ```bash
-.venv/bin/python DFR-source/main.py \
+conda run -n dfr python DFR-source/main.py \
   --mode all \
   --data-root data/mvtec_ad \
   --categories all \
@@ -75,7 +78,7 @@ One-epoch smoke test across all 15 categories:
 Paper-configuration run (700 epochs per category):
 
 ```bash
-.venv/bin/python DFR-source/main.py \
+conda run -n dfr python DFR-source/main.py \
   --mode all \
   --data-root data/mvtec_ad \
   --categories all \

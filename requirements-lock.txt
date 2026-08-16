@@ -1,5 +1,5 @@
-# Packages installed locally in .venv. PyTorch, torchvision, NumPy, Pillow,
-# and their CUDA dependencies are inherited from the tested host environment.
+# Packages installed in the dfr Conda environment. PyTorch, torchvision, NumPy,
+# Pillow, and their CUDA dependencies are inherited by cloning py312.
 anyio==4.14.2
 certifi==2026.7.22
 click==8.4.2
