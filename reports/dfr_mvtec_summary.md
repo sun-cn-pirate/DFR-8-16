@@ -1,10 +1,10 @@
 # DFR MVTec AD reproduction results
 
-Reported categories: 15/15; categories at the current 1-epoch target: 15/15.
+Reported categories: 15/15; categories at the current 700-epoch target: 1/15.
 
 | Category | Epochs | PCA dim | Train (h) | Eval (s) | Det AP | Det AUC | Seg AP | Seg AUC | PRO-AUC | Best IoU |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| bottle | 1 | 197 | 0.000 | 0.0 | 0.90654 | 0.73810 | 0.16946 | 0.66200 | 0.50997 | 0.17431 |
+| bottle | 700 | 197 | 0.841 | 435.2 | 0.99880 | 0.99603 | 0.59690 | 0.95891 | 0.91421 | 0.43082 |
 | cable | 1 | 669 | 0.000 | 0.0 | 0.79231 | 0.64074 | 0.07621 | 0.75868 | 0.42493 | 0.11372 |
 | capsule | 1 | 262 | 0.000 | 0.0 | 0.80151 | 0.42361 | 0.06978 | 0.90979 | 0.79052 | 0.07016 |
 | hazelnut | 1 | 514 | 0.000 | 0.0 | 0.99923 | 0.99857 | 0.59686 | 0.97772 | 0.93208 | 0.44586 |
@@ -19,7 +19,7 @@ Reported categories: 15/15; categories at the current 1-epoch target: 15/15.
 | leather | 1 | 432 | 0.000 | 0.0 | 0.97301 | 0.92018 | 0.41401 | 0.95938 | 0.86611 | 0.28927 |
 | tile | 1 | 633 | 0.004 | 22.7 | 0.92564 | 0.83586 | 0.17413 | 0.67599 | 0.47973 | 0.15533 |
 | wood | 1 | 437 | 0.012 | 39.9 | 0.98895 | 0.96228 | 0.38067 | 0.92606 | 0.77825 | 0.28279 |
-| **Mean metrics** |  |  |  |  | **0.87016** | **0.72556** | **0.19224** | **0.80092** | **0.60762** | **0.16285** |
+| **Mean metrics** |  |  |  |  | **0.87631** | **0.74276** | **0.22074** | **0.82071** | **0.63457** | **0.17995** |
 
 ## Comparison with the paper's 12-layer configuration
 
@@ -27,7 +27,7 @@ The paper reports pixel ROC-AUC and PRO-AUC; delta is reproduction minus paper.
 
 | Category | Seg AUC | Paper Seg AUC | Delta | PRO-AUC | Paper PRO-AUC | Delta |
 |---|---:|---:|---:|---:|---:|---:|
-| bottle | 0.66200 | 0.95 | -0.28800 | 0.50997 | 0.92 | -0.41003 |
+| bottle | 0.95891 | 0.95 | +0.00891 | 0.91421 | 0.92 | -0.00579 |
 | cable | 0.75868 | 0.88 | -0.12132 | 0.42493 | 0.77 | -0.34507 |
 | capsule | 0.90979 | 0.98 | -0.07021 | 0.79052 | 0.96 | -0.16948 |
 | hazelnut | 0.97772 | 0.98 | -0.00228 | 0.93208 | 0.97 | -0.03792 |
