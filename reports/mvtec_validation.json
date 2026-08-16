@@ -1,0 +1,100 @@
+{
+  "categories": {
+    "bottle": {
+      "masks": 63,
+      "test_anomalous": 63,
+      "test_good": 20,
+      "train": 209
+    },
+    "cable": {
+      "masks": 92,
+      "test_anomalous": 92,
+      "test_good": 58,
+      "train": 224
+    },
+    "capsule": {
+      "masks": 109,
+      "test_anomalous": 109,
+      "test_good": 23,
+      "train": 219
+    },
+    "carpet": {
+      "masks": 89,
+      "test_anomalous": 89,
+      "test_good": 28,
+      "train": 280
+    },
+    "grid": {
+      "masks": 57,
+      "test_anomalous": 57,
+      "test_good": 21,
+      "train": 264
+    },
+    "hazelnut": {
+      "masks": 70,
+      "test_anomalous": 70,
+      "test_good": 40,
+      "train": 391
+    },
+    "leather": {
+      "masks": 92,
+      "test_anomalous": 92,
+      "test_good": 32,
+      "train": 245
+    },
+    "metal_nut": {
+      "masks": 93,
+      "test_anomalous": 93,
+      "test_good": 22,
+      "train": 220
+    },
+    "pill": {
+      "masks": 141,
+      "test_anomalous": 141,
+      "test_good": 26,
+      "train": 267
+    },
+    "screw": {
+      "masks": 119,
+      "test_anomalous": 119,
+      "test_good": 41,
+      "train": 320
+    },
+    "tile": {
+      "masks": 84,
+      "test_anomalous": 84,
+      "test_good": 33,
+      "train": 230
+    },
+    "toothbrush": {
+      "masks": 30,
+      "test_anomalous": 30,
+      "test_good": 12,
+      "train": 60
+    },
+    "transistor": {
+      "masks": 40,
+      "test_anomalous": 40,
+      "test_good": 60,
+      "train": 213
+    },
+    "wood": {
+      "masks": 60,
+      "test_anomalous": 60,
+      "test_good": 19,
+      "train": 247
+    },
+    "zipper": {
+      "masks": 119,
+      "test_anomalous": 119,
+      "test_good": 32,
+      "train": 240
+    }
+  },
+  "totals": {
+    "masks": 1258,
+    "test_anomalous": 1258,
+    "test_good": 467,
+    "train": 3629
+  }
+}
