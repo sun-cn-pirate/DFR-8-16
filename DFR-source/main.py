@@ -9,6 +9,7 @@ import os
 import platform
 import random
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -47,6 +48,18 @@ PAPER_FEATURE_LAYERS = (
 )
 METRIC_FIELDS = (
     "category",
+    "epochs",
+    "latent_dim",
+    "train_seconds",
+    "eval_seconds",
+    "det_pr",
+    "det_auc",
+    "seg_pr",
+    "seg_auc",
+    "seg_pro",
+    "seg_iou",
+)
+METRIC_VALUE_FIELDS = (
     "det_pr",
     "det_auc",
     "seg_pr",
@@ -171,6 +184,15 @@ def build_category_config(args: argparse.Namespace, category: str) -> argparse.N
 
 def write_summary(rows: list[dict[str, float | str]], report_dir: Path, args: argparse.Namespace) -> None:
     report_dir.mkdir(parents=True, exist_ok=True)
+    normalized_rows = []
+    for row in rows:
+        normalized = dict(row)
+        normalized.setdefault("epochs", 0)
+        normalized.setdefault("latent_dim", 0)
+        normalized.setdefault("train_seconds", 0.0)
+        normalized.setdefault("eval_seconds", 0.0)
+        normalized_rows.append(normalized)
+    rows = normalized_rows
     csv_path = report_dir / "dfr_mvtec_summary.csv"
     with csv_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(
@@ -181,7 +203,7 @@ def write_summary(rows: list[dict[str, float | str]], report_dir: Path, args: ar
         writer.writeheader()
         writer.writerows(rows)
 
-    numeric_fields = METRIC_FIELDS[1:]
+    numeric_fields = METRIC_VALUE_FIELDS
     means = {
         key: float(np.mean([float(row[key]) for row in rows]))
         for key in numeric_fields
@@ -193,8 +215,15 @@ def write_summary(rows: list[dict[str, float | str]], report_dir: Path, args: ar
         "cuda": torch.version.cuda,
         "device": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu",
         "seed": args.seed,
-        "epochs": args.epochs,
+        "target_epochs": args.epochs,
         "categories_completed": len(rows),
+        "categories_at_target": sum(
+            int(row["epochs"]) >= args.epochs for row in rows
+        ),
+        "legacy_timing_rows": sum(
+            int(row["epochs"]) > 0 and float(row["train_seconds"]) == 0.0
+            for row in rows
+        ),
         "means": means,
     }
     (report_dir / "environment.json").write_text(
@@ -205,23 +234,31 @@ def write_summary(rows: list[dict[str, float | str]], report_dir: Path, args: ar
     lines = [
         "# DFR MVTec AD reproduction results",
         "",
-        f"Completed categories: {len(rows)}/15; epochs per category: {args.epochs}.",
+        f"Reported categories: {len(rows)}/15; categories at the current "
+        f"{args.epochs}-epoch target: "
+        f"{sum(int(row['epochs']) >= args.epochs for row in rows)}/15.",
         "",
-        "| Category | Det AP | Det AUC | Seg AP | Seg AUC | PRO-AUC | Best IoU |",
-        "|---|---:|---:|---:|---:|---:|---:|",
+        "| Category | Epochs | PCA dim | Train (h) | Eval (s) | Det AP | Det AUC | Seg AP | Seg AUC | PRO-AUC | Best IoU |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in rows:
         lines.append(
-            "| {category} | {det_pr:.5f} | {det_auc:.5f} | {seg_pr:.5f} | "
-            "{seg_auc:.5f} | {seg_pro:.5f} | {seg_iou:.5f} |".format(**row)
+            "| {category} | {epochs:d} | {latent_dim:d} | {train_hours:.3f} | "
+            "{eval_seconds:.1f} | {det_pr:.5f} | {det_auc:.5f} | {seg_pr:.5f} | "
+            "{seg_auc:.5f} | {seg_pro:.5f} | {seg_iou:.5f} |".format(
+                **row,
+                train_hours=float(row["train_seconds"]) / 3600.0,
+            )
         )
     if rows:
         lines.append(
-            "| **Mean** | "
+            "| **Mean metrics** |  |  |  |  | "
             + " | ".join(f"**{means[key]:.5f}**" for key in numeric_fields)
             + " |"
         )
     lines.extend([
+        "",
+        "A zero timing value marks a smoke result produced before cumulative timing metadata was introduced.",
         "",
         "The upstream project does not publish complete package versions or all random-state details; "
         "differences from the paper are reported without hidden tuning.",
@@ -239,7 +276,11 @@ def load_summary(report_dir: Path) -> list[dict[str, float | str]]:
     return [
         {
             "category": row["category"],
-            **{key: float(row[key]) for key in METRIC_FIELDS[1:]},
+            "epochs": int(row.get("epochs") or 0),
+            "latent_dim": int(row.get("latent_dim") or 0),
+            "train_seconds": float(row.get("train_seconds") or 0.0),
+            "eval_seconds": float(row.get("eval_seconds") or 0.0),
+            **{key: float(row[key]) for key in METRIC_VALUE_FIELDS},
         }
         for row in rows
         if row.get("category") in MVTEC_CATEGORIES
@@ -265,6 +306,7 @@ def main() -> int:
         if mode in ("train", "all"):
             dfr.train(resume=args.resume)
         if mode in ("evaluate", "all"):
+            evaluation_started = time.monotonic()
             metrics = dfr.metrics_evaluation(
                 expect_fpr=args.expected_fpr,
                 max_step=args.metric_steps,
@@ -272,8 +314,16 @@ def main() -> int:
             )
             if metrics is None:
                 raise RuntimeError(f"Evaluation failed for category '{category}'")
+            evaluation_seconds = time.monotonic() - evaluation_started
             rows = [row for row in rows if row["category"] != category]
-            rows.append({"category": category, **metrics})
+            rows.append({
+                "category": category,
+                "epochs": args.epochs,
+                "latent_dim": int(dfr.n_dim),
+                "train_seconds": float(dfr.training_elapsed_seconds),
+                "eval_seconds": evaluation_seconds,
+                **metrics,
+            })
             category_order = {name: index for index, name in enumerate(MVTEC_CATEGORIES)}
             rows.sort(key=lambda row: category_order[str(row["category"])])
             write_summary(rows, args.report_dir, args)

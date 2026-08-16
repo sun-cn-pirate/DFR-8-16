@@ -47,6 +47,7 @@ class AnoSegDFR():
         self.img_size = cfg.img_size
         self.threshold = cfg.thred
         self.device = torch.device(cfg.device)
+        self.training_elapsed_seconds = 0.0
 
         # feature extractor
         self.extractor = Extractor(backbone=cfg.backbone,
@@ -187,6 +188,7 @@ class AnoSegDFR():
 
     def train(self, resume=True):
         start_time = time.time()
+        elapsed_before_resume = self.training_elapsed_seconds
         iters_per_epoch = len(self.train_data_loader)  # total iterations every epoch
         epochs = self.cfg.epochs  # total epochs
         start_epoch = self.load_training_checkpoint() + 1 if resume else 1
@@ -234,6 +236,9 @@ class AnoSegDFR():
             checkpoint_every = getattr(self.cfg, "checkpoint_every", 10)
             if epoch % checkpoint_every == 0:
                 # save model
+                self.training_elapsed_seconds = (
+                    elapsed_before_resume + time.time() - start_time
+                )
                 self.save_model(epoch)
                 self.validation(epoch)
 
@@ -242,6 +247,9 @@ class AnoSegDFR():
             self.tracking_loss(epoch, np.mean(np.array(losses)))
 
         # save model
+        self.training_elapsed_seconds = (
+            elapsed_before_resume + time.time() - start_time
+        )
         self.save_model(epochs)
         print("Cost total time {}s".format(time.time() - start_time))
         print("Done.")
@@ -447,6 +455,7 @@ class AnoSegDFR():
             'n_dim': self.n_dim,
             'config': self.checkpoint_config(),
             'seed': getattr(cfg, 'seed', None),
+            'training_elapsed_seconds': self.training_elapsed_seconds,
             'torch_rng_state': torch.get_rng_state(),
             'cuda_rng_state_all': (
                 torch.cuda.get_rng_state_all() if torch.cuda.is_available() else []
@@ -464,13 +473,22 @@ class AnoSegDFR():
         self.autoencoder.load_state_dict(data['autoencoder'])
         if 'optimizer' in data:
             self.optimizer.load_state_dict(data['optimizer'])
+        self.training_elapsed_seconds = float(
+            data.get('training_elapsed_seconds', 0.0)
+        )
         if 'torch_rng_state' in data:
-            torch.set_rng_state(data['torch_rng_state'])
+            torch.set_rng_state(data['torch_rng_state'].cpu())
         if torch.cuda.is_available() and data.get('cuda_rng_state_all'):
-            torch.cuda.set_rng_state_all(data['cuda_rng_state_all'])
+            torch.cuda.set_rng_state_all([
+                state.cpu() for state in data['cuda_rng_state_all']
+            ])
         epoch = int(data.get('epoch', 0))
         print(f"Resuming {self.data_name} from epoch {epoch}: {model_path}")
-        if 'config' not in data or 'seed' not in data:
+        if (
+            'config' not in data
+            or 'seed' not in data
+            or 'training_elapsed_seconds' not in data
+        ):
             self.save_model(epoch)
             print(f"Upgraded legacy checkpoint metadata: {model_path}")
         return epoch
@@ -487,6 +505,9 @@ class AnoSegDFR():
             data = torch.load(model_path, map_location=self.device, weights_only=True)
 
             self.autoencoder.load_state_dict(data['autoencoder'])
+            self.training_elapsed_seconds = float(
+                data.get('training_elapsed_seconds', 0.0)
+            )
             print("Model loaded:", model_path)
         return True
 

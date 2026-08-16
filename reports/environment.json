@@ -5,14 +5,16 @@
   "cuda": "13.2",
   "device": "NVIDIA GeForce RTX 4090",
   "seed": 0,
-  "epochs": 1,
-  "categories_completed": 6,
+  "target_epochs": 1,
+  "categories_completed": 8,
+  "categories_at_target": 8,
+  "legacy_timing_rows": 8,
   "means": {
-    "det_pr": 0.8899130694213288,
-    "det_auc": 0.7329072506807165,
-    "seg_pr": 0.2033573253035262,
-    "seg_auc": 0.7851236935690863,
-    "seg_pro": 0.6101859893153937,
-    "seg_iou": 0.18207960637907186
+    "det_pr": 0.8955820825683305,
+    "det_auc": 0.740826661487417,
+    "seg_pr": 0.23148187591948954,
+    "seg_auc": 0.7961373416473854,
+    "seg_pro": 0.6168596778311638,
+    "seg_iou": 0.20049301953986287
   }
 }

@@ -79,6 +79,10 @@ class CliTests(unittest.TestCase):
             args = argparse.Namespace(seed=0, epochs=1)
             row = {
                 "category": "bottle",
+                "epochs": 1,
+                "latent_dim": 197,
+                "train_seconds": 12.5,
+                "eval_seconds": 3.5,
                 "det_pr": 0.9,
                 "det_auc": 0.91,
                 "seg_pr": 0.8,
@@ -96,6 +100,8 @@ class CliTests(unittest.TestCase):
             )
             loaded = load_summary(Path(temp_dir))
             self.assertEqual(loaded[0]["category"], "bottle")
+            self.assertEqual(loaded[0]["epochs"], 1)
+            self.assertEqual(loaded[0]["latent_dim"], 197)
             self.assertAlmostEqual(float(loaded[0]["seg_auc"]), 0.81)
 
 
@@ -109,7 +115,10 @@ class CheckpointTests(unittest.TestCase):
             dfr.optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
             dfr.n_dim = 1
             dfr.data_name = "synthetic"
-            dfr.device = torch.device("cpu")
+            dfr.device = torch.device(
+                "cuda:0" if torch.cuda.is_available() else "cpu"
+            )
+            dfr.training_elapsed_seconds = 12.25
             dfr.cfg = argparse.Namespace(
                 seed=123,
                 epochs=9,
@@ -125,6 +134,7 @@ class CheckpointTests(unittest.TestCase):
             )
             self.assertEqual(checkpoint["checkpoint_version"], 2)
             self.assertEqual(checkpoint["seed"], 123)
+            self.assertEqual(checkpoint["training_elapsed_seconds"], 12.25)
             self.assertEqual(checkpoint["config"]["data_root"], temp_dir)
             self.assertEqual(
                 checkpoint["config"]["cnn_layers"],
