@@ -1,6 +1,29 @@
 # DFR
 Project: Unsupervised Anomaly Detection and Segmentation
 
+> This repository is a research reproduction of
+> [YoungGod/DFR](https://github.com/YoungGod/DFR), imported from upstream
+> commit `f2e2d4ef5e542fb99aa41566cd9f662bec9ce771`. The upstream repository
+> does not provide a software license. Its source and figures remain attributed
+> to the original authors; this repository does not claim to relicense them.
+
+## Reproduction status
+
+The reproduction targets all 15 MVTec AD categories using the paper settings:
+256 x 256 images, the first 12 VGG19 convolutional feature levels, 4 x 4
+regional aggregation with stride 4, PCA retaining 90% variance, batch size 4,
+Adam with a learning rate of `1e-4`, and 700 training epochs per category.
+
+MVTec AD is not included in this repository. It is used only for non-commercial
+research under the
+[CC BY-NC-SA 4.0 license](https://creativecommons.org/licenses/by-nc-sa/4.0/).
+Downloaded data, pretrained weights, checkpoints, and large generated artifacts
+are intentionally excluded from Git.
+
+The compatibility work and reproducible commands are developed on the
+`reproduction` branch. Exact setup and execution instructions will be added as
+the smoke tests are validated.
+
 Paper: Unsupervised anomaly segmentation via deep feature reconstruction  | **[Neurocomputing]**[`pdf`](https://www.sciencedirect.com/science/article/pii/S0925231220317951)[`code`](https://github.com/YoungGod/DFR) | **arxive preprint**[`pdf`](https://arxiv.org/abs/2012.07122)
 
 Introduction: Automatic detecting anomalous regions in images of objects or textures without priors of the anomalies is challenging, especially when the anomalies appear in very small areas of the images, making difficult-to-detect visual variations, such as defects on manufacturing products.

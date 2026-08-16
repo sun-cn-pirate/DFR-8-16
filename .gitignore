@@ -1,0 +1,26 @@
+# Local Python environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Downloaded datasets and pretrained weights
+data/
+.cache/
+checkpoints/
+*.pth
+*.pt
+*.ckpt
+
+# Generated training and evaluation artifacts
+outputs/
+models/
+Results/
+runs/
+
+# Local logs and editor files
+*.log
+.idea/
+.vscode/
+
