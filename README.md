@@ -21,8 +21,8 @@ Downloaded data, pretrained weights, checkpoints, and large generated artifacts
 are intentionally excluded from Git.
 
 The compatibility work and reproducible commands are developed on the
-`reproduction` branch. Exact setup and execution instructions will be added as
-the smoke tests are validated.
+`reproduction` branch. Exact setup, validation, smoke-test, and full-run
+instructions are provided below.
 
 ## Environment
 

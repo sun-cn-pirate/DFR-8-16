@@ -142,7 +142,7 @@ if __name__ == "__main__":
     vgg19_layers = ('relu1_1', 'relu1_2', 'relu2_1', 'relu2_2',
                     'relu3_1', 'relu3_2', 'relu3_3', 'relu3_4')
 
-    device = "cuda:1"
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
     extractor = Extractor(backbone="vgg19",
                           cnn_layers=vgg19_layers,
                           featmap_size=(256, 256),

@@ -222,7 +222,7 @@ if __name__ == "__main__":
     import numpy as np
     import time
 
-    device = torch.device("cuda:1")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     x = torch.Tensor(np.random.randn(1, 3000, 64, 64)).to(device)
     feat_ae = FeatCAE(in_channels=3000, latent_dim=200).to(device)
 
