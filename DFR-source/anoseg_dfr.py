@@ -10,6 +10,7 @@ import torch.optim as optim
 import time
 import datetime
 import os
+from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage.io import imsave
@@ -36,10 +37,12 @@ class AnoSegDFR():
         self.path = cfg.save_path    # model and results saving path
 
         self.n_layers = len(cfg.cnn_layers)
+        self.data_name = cfg.data_name
         self.n_dim = cfg.latent_dim
+        if self.n_dim is None and getattr(cfg, 'resume', False):
+            self.n_dim = self.find_saved_dimension()
 
         self.log_step = 10
-        self.data_name = cfg.data_name
 
         self.img_size = cfg.img_size
         self.threshold = cfg.thred
@@ -146,6 +149,31 @@ class AnoSegDFR():
                                                                 self.cfg.kernel_size[0], self.cfg.upsample)
 
         return autoencoder, model_name
+
+    def find_saved_dimension(self):
+        category_path = Path(self.path) / "models" / self.data_name
+        if self.cfg.model_name:
+            candidates = [category_path / self.cfg.model_name / "model" / "n_dim.npy"]
+        else:
+            bn_name = "BN" if self.cfg.is_bn else "noBN"
+            pattern = (
+                f"AnoSegDFR({bn_name})_{self.cfg.backbone}_l{self.n_layers}_d*"
+                f"_s{self.cfg.stride[0]}_k{self.cfg.kernel_size[0]}_"
+                f"{self.cfg.upsample}/model/n_dim.npy"
+            )
+            candidates = sorted(category_path.glob(pattern))
+        candidates = [path for path in candidates if path.is_file()]
+        if not candidates:
+            return None
+        if len(candidates) > 1:
+            rendered = ", ".join(str(path) for path in candidates)
+            raise ValueError(
+                "Multiple resumable latent dimensions match this configuration; "
+                f"set --latent-dim or --model-name explicitly: {rendered}"
+            )
+        n_dim = int(np.load(candidates[0], allow_pickle=False).item())
+        print(f"Using saved latent dimension {n_dim}: {candidates[0]}")
+        return n_dim
 
     def build_dataset(self, is_train):
         from MVTec import NormalDataset, TestDataset
@@ -383,14 +411,49 @@ class AnoSegDFR():
         visulization(img_file=name, mask_path=mask_path,
                      score_map_path=binary_score_map_path, saving_path=gt_pred_seg_image_path)
 
+    @staticmethod
+    def _serializable_config(value):
+        if isinstance(value, Path):
+            return str(value)
+        if isinstance(value, tuple):
+            return [AnoSegDFR._serializable_config(item) for item in value]
+        if isinstance(value, list):
+            return [AnoSegDFR._serializable_config(item) for item in value]
+        if isinstance(value, dict):
+            return {
+                str(key): AnoSegDFR._serializable_config(item)
+                for key, item in value.items()
+            }
+        return value
+
+    def checkpoint_config(self):
+        cfg = getattr(self, 'cfg', None)
+        if cfg is None:
+            return {}
+        return {
+            key: self._serializable_config(value)
+            for key, value in vars(cfg).items()
+        }
+
     def save_model(self, epoch=0):
-        torch.save({
-                       'epoch': epoch,
-                       'autoencoder': self.autoencoder.state_dict(),
-                       'optimizer': self.optimizer.state_dict(),
-                       'n_dim': self.n_dim,
-                   },
-                   os.path.join(self.model_path, 'autoencoder.pth'))
+        checkpoint_path = os.path.join(self.model_path, 'autoencoder.pth')
+        temporary_path = checkpoint_path + '.tmp'
+        cfg = getattr(self, 'cfg', None)
+        checkpoint = {
+            'checkpoint_version': 2,
+            'epoch': epoch,
+            'autoencoder': self.autoencoder.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'n_dim': self.n_dim,
+            'config': self.checkpoint_config(),
+            'seed': getattr(cfg, 'seed', None),
+            'torch_rng_state': torch.get_rng_state(),
+            'cuda_rng_state_all': (
+                torch.cuda.get_rng_state_all() if torch.cuda.is_available() else []
+            ),
+        }
+        torch.save(checkpoint, temporary_path)
+        os.replace(temporary_path, checkpoint_path)
         np.save(os.path.join(self.model_path, 'n_dim.npy'), self.n_dim)
 
     def load_training_checkpoint(self):
@@ -401,8 +464,15 @@ class AnoSegDFR():
         self.autoencoder.load_state_dict(data['autoencoder'])
         if 'optimizer' in data:
             self.optimizer.load_state_dict(data['optimizer'])
+        if 'torch_rng_state' in data:
+            torch.set_rng_state(data['torch_rng_state'])
+        if torch.cuda.is_available() and data.get('cuda_rng_state_all'):
+            torch.cuda.set_rng_state_all(data['cuda_rng_state_all'])
         epoch = int(data.get('epoch', 0))
         print(f"Resuming {self.data_name} from epoch {epoch}: {model_path}")
+        if 'config' not in data or 'seed' not in data:
+            self.save_model(epoch)
+            print(f"Upgraded legacy checkpoint metadata: {model_path}")
         return epoch
 
     def load_model(self, path=None):

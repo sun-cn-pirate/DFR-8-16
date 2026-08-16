@@ -1,0 +1,18 @@
+{
+  "python": "3.12.11",
+  "torch": "2.13.0+cu132",
+  "torchvision": "0.28.0+cu132",
+  "cuda": "13.2",
+  "device": "NVIDIA GeForce RTX 4090",
+  "seed": 0,
+  "epochs": 1,
+  "categories_completed": 1,
+  "means": {
+    "det_pr": 0.9065364592516623,
+    "det_auc": 0.7380952380952381,
+    "seg_pr": 0.1694646867957274,
+    "seg_auc": 0.6619957563825113,
+    "seg_pro": 0.5099697008972308,
+    "seg_iou": 0.17431248724460602
+  }
+}

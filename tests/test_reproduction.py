@@ -106,8 +106,26 @@ class CheckpointTests(unittest.TestCase):
             dfr.n_dim = 1
             dfr.data_name = "synthetic"
             dfr.device = torch.device("cpu")
+            dfr.cfg = argparse.Namespace(
+                seed=123,
+                epochs=9,
+                data_root=Path(temp_dir),
+                cnn_layers=("relu1_1", "relu1_2"),
+            )
             expected = model.weight.detach().clone()
             dfr.save_model(epoch=7)
+            checkpoint = torch.load(
+                Path(temp_dir) / "autoencoder.pth",
+                map_location="cpu",
+                weights_only=True,
+            )
+            self.assertEqual(checkpoint["checkpoint_version"], 2)
+            self.assertEqual(checkpoint["seed"], 123)
+            self.assertEqual(checkpoint["config"]["data_root"], temp_dir)
+            self.assertEqual(
+                checkpoint["config"]["cnn_layers"],
+                ["relu1_1", "relu1_2"],
+            )
             with torch.no_grad():
                 model.weight.zero_()
             epoch = dfr.load_training_checkpoint()
