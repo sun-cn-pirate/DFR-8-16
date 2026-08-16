@@ -11,7 +11,10 @@ def normalize(x):
     """
     x_min = x.min()
     x_max = x.max()
-    return (x - x_min) / (x_max - x_min)
+    value_range = x_max - x_min
+    if value_range == 0:
+        return np.zeros_like(x)
+    return (x - x_min) / value_range
 
 
 def visulization(img_file, mask_path, score_map_path, saving_path):
@@ -63,7 +66,11 @@ def visulization_score(img_file, mask_path, score_map_path, saving_path):
     score = cv2.imread(score_file, cv2.IMREAD_GRAYSCALE)
 
     heatmap = cv2.applyColorMap(score, cv2.COLORMAP_JET)  # 将score转换成热力图
-    superimposed_img = heatmap * 0.7 + superimposed_img * 0.8     # 将热力图叠加到原图像
+    superimposed_img = np.clip(
+        heatmap.astype(np.float32) * 0.7 + superimposed_img.astype(np.float32) * 0.8,
+        0,
+        255,
+    ).astype(np.uint8)
     # cv2.imwrite('cam.jpg', superimposed_img)  # 将图像保存
 
     # save
@@ -153,4 +160,7 @@ def auc_roc(mask, score):
 
 
 def rescale(x):
-    return (x - x.min()) / (x.max() - x.min())
+    value_range = x.max() - x.min()
+    if value_range == 0:
+        return np.zeros_like(x)
+    return (x - x.min()) / value_range

@@ -18,14 +18,6 @@ model_urls = {
     'vgg19_bn': 'https://download.pytorch.org/models/vgg19_bn-c79401a0.pth',
 }
 
-# if we have the pretrained files
-model_dirs = {
-    'vgg11': '/home/jovyan/work/model-checkpoints/vgg11-bbd30ac9.pth',
-    'vgg13': '/home/jovyan/work/model-checkpoints/vgg13-c768596a.pth',
-    'vgg16': '/home/jovyan/work/model-checkpoints/vgg16-397923af.pth',
-    'vgg19': '/home/jovyan/work/model-checkpoints/vgg19-dcbb9e9d.pth',
-}
-
 class VGG(nn.Module):
 
     def __init__(self, features, num_classes=1000, init_weights=True):
@@ -74,7 +66,6 @@ def make_layers(cfg, batch_norm=False):
         else:
             # pad2d = nn.ReflectionPad2d(padding=1)
             # layers += [pad2d]
-            print("##################Reflection Padding#######################")
             conv2d = nn.Conv2d(in_channels, v, kernel_size=3)
             # conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=1)
             if batch_norm:
@@ -101,7 +92,6 @@ def _vgg(arch, cfg, batch_norm, pretrained, progress, **kwargs):
         # TODO
         state_dict = load_state_dict_from_url(model_urls[arch],
                                               progress=progress)
-        # state_dict = torch.load(model_dirs[arch])    # if we have the pretrained files
         model.load_state_dict(state_dict)
     return model
 
@@ -381,5 +371,5 @@ def load_state_dict_from_url(url, model_dir=None, map_location=None, progress=Tr
             extraced_name = members[0].filename
             cached_file = os.path.join(model_dir, extraced_name)
 
-    return torch.load(cached_file, map_location=map_location)
+    return torch.load(cached_file, map_location=map_location, weights_only=True)
 

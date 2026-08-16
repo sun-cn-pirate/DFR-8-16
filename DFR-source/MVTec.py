@@ -4,6 +4,7 @@ import torch
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 from PIL import Image
+from torchvision.transforms import InterpolationMode
 from skimage.io import imread
 from skimage.transform import resize
 
@@ -11,7 +12,6 @@ from skimage.transform import resize
 def get_image_files(path, mode='train'):
     images = []
     ext = {'.jpg', '.png'}
-#     path = "/home/jie/Datasets/mvtec-anomaly/bottle/test"
     for root, dirs, files in os.walk(path):
         print('loading image files ' + root)
         for file in files:
@@ -27,7 +27,6 @@ def get_image_files(path, mode='train'):
 def get_mask_files(path):
     masks = []
     ext = {'.jpg', '.png'}
-#     path = "/home/jie/Datasets/mvtec-anomaly/bottle/ground_truth"
     for root, dirs, files in os.walk(path):
         print('loading mask files ' + root)
         for file in files:
@@ -47,7 +46,7 @@ class NormalDataset(Dataset):
         self.len = len(self.img_files)
 
         # transformer
-        resize = transforms.Resize(size=(256, 256), interpolation=Image.NEAREST)
+        resize = transforms.Resize(size=(256, 256), interpolation=InterpolationMode.NEAREST)
         if normalize:
             normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                              std=[0.229, 0.224, 0.225])
@@ -61,11 +60,8 @@ class NormalDataset(Dataset):
     def __getitem__(self, idx):
         """
         """
-        img = Image.open(self.img_files[idx])
-        if "zipper" in self.img_files[idx] or "screw" in self.img_files[idx] or "grid" in self.img_files[idx]:
-            img = np.expand_dims(np.array(img), axis=2)
-            img = np.concatenate([img, img, img], axis=2)
-            img = Image.fromarray(img.astype('uint8')).convert('RGB')
+        with Image.open(self.img_files[idx]) as source:
+            img = source.convert('RGB')
         if self.transform is not None:
             img = self.transform(img)
         return img
@@ -90,7 +86,7 @@ class AbnormalDataset(Dataset):
         self.len = len(self.img_files)
 
         # transformer
-        resize = transforms.Resize(size=(256, 256), interpolation=Image.NEAREST)
+        resize = transforms.Resize(size=(256, 256), interpolation=InterpolationMode.NEAREST)
         if normalize:
             normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                              std=[0.229, 0.224, 0.225])
@@ -104,11 +100,8 @@ class AbnormalDataset(Dataset):
     def __getitem__(self, idx):
         """
         """
-        img = Image.open(self.img_files[idx])
-        if "zipper" in self.img_files[idx] or "screw" in self.img_files[idx] or "grid" in self.img_files[idx]:
-            img = np.expand_dims(np.array(img), axis=2)
-            img = np.concatenate([img, img, img], axis=2)
-            img = Image.fromarray(img.astype('uint8')).convert('RGB')
+        with Image.open(self.img_files[idx]) as source:
+            img = source.convert('RGB')
         if self.transform is not None:
             img = self.transform(img)
         return img
@@ -129,7 +122,7 @@ class MaskDataset(Dataset):
         self.len = len(self.mask_files)
 
         # transformer
-        resize = transforms.Resize(size=(256, 256), interpolation=Image.NEAREST)
+        resize = transforms.Resize(size=(256, 256), interpolation=InterpolationMode.NEAREST)
         self.transform = transforms.Compose([resize])
 
     def __len__(self):
@@ -145,7 +138,6 @@ class MaskDataset(Dataset):
 
     def _get_mask_files(self, path, ext={'.jpg', '.png'}):
         masks = []
-        #         path = "/home/jie/Datasets/mvtec-anomaly/bottle/ground_truth"
         for root, dirs, files in os.walk(path):
             print('loading mask files ' + root)
             for file in files:
@@ -161,7 +153,7 @@ class TestDataset(Dataset):
         self.len = len(self.img_files)
 
         # transformer
-        resize = transforms.Resize(size=(256, 256), interpolation=Image.NEAREST)
+        resize = transforms.Resize(size=(256, 256), interpolation=InterpolationMode.NEAREST)
         if normalize:
             normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                              std=[0.229, 0.224, 0.225])
@@ -175,28 +167,27 @@ class TestDataset(Dataset):
     def __getitem__(self, idx):
         """
         """
-        img = Image.open(self.img_files[idx])
-        if "zipper" in self.img_files[idx] or "screw" in self.img_files[idx] or "grid" in self.img_files[idx]:
-            img = np.expand_dims(np.array(img), axis=2)
-            img = np.concatenate([img, img, img], axis=2)
-            img = Image.fromarray(img.astype('uint8')).convert('RGB')
+        with Image.open(self.img_files[idx]) as source:
+            img = source.convert('RGB')
         if self.transform is not None:
             img = self.transform(img)
         img_name = self.img_files[idx]
 
         # mask
         # h, w, _ = img.shape
-        if img_name.split('/')[-2] == "good":
-            mask = np.zeros((256, 256))
+        image_path = os.path.abspath(img_name)
+        defect_name = os.path.basename(os.path.dirname(image_path))
+        if defect_name == "good":
+            mask = np.zeros((256, 256), dtype=np.float32)
         else:
-            if "wine" in self.img_files[idx]:
-                mask_path = img_name.replace("test", "ground_truth").split(".")[-2] + ".png"
-                mask = imread(mask_path, as_gray=True)
-                mask = resize(mask, (256, 256))
-            else:
-                mask_path = img_name.replace("test", "ground_truth").split(".")[-2] + "_mask.png"
-                mask = imread(mask_path, as_gray=True)
-                mask = resize(mask, (256, 256))
+            category_path = os.path.dirname(os.path.dirname(os.path.dirname(image_path)))
+            stem = os.path.splitext(os.path.basename(image_path))[0]
+            mask_path = os.path.join(category_path, "ground_truth", defect_name, stem + "_mask.png")
+            if not os.path.isfile(mask_path):
+                raise FileNotFoundError(f"Ground-truth mask not found: {mask_path}")
+            mask = imread(mask_path, as_gray=True)
+            mask = resize(mask, (256, 256), order=0, preserve_range=True, anti_aliasing=False)
+            mask = np.asarray(mask, dtype=np.float32)
         return img, mask, img_name
 
     def _get_image_files(self, path, ext={'.jpg', '.png'}):
@@ -239,7 +230,7 @@ class ValTestDataset(Dataset):
         # transformer
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                          std=[0.229, 0.224, 0.225])
-        resize = transforms.Resize(size=(256, 256), interpolation=Image.NEAREST)
+        resize = transforms.Resize(size=(256, 256), interpolation=InterpolationMode.NEAREST)
         self.transform = transforms.Compose([resize, transforms.ToTensor(), normalize])
 
     def __len__(self):
@@ -307,10 +298,10 @@ class TrainTestDataset(Dataset):
         # transformer
         # t_normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
         #                                  std=[0.229, 0.224, 0.225])
-        # t_resize = transforms.Resize(size=(256, 256), interpolation=Image.NEAREST)
+        # t_resize = transforms.Resize(size=(256, 256), interpolation=InterpolationMode.NEAREST)
         # self.transform = transforms.Compose([t_resize, transforms.ToTensor(), t_normalize])
         # transformer
-        t_resize = transforms.Resize(size=(256, 256), interpolation=Image.NEAREST)
+        t_resize = transforms.Resize(size=(256, 256), interpolation=InterpolationMode.NEAREST)
         if normalize:
             normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                              std=[0.229, 0.224, 0.225])
@@ -394,34 +385,3 @@ def build_dataset_from_featmap(x, mask=None, ksize=5, stride=5, agg_type='avg', 
     mm = torch.eq(m.mean(dim=(2, 3, 4), keepdim=True), torch.tensor(1.).to(device)).to(torch.float32)
 
     return xx, mm
-
-if __name__ == "__main__":
-    data_name = "bottle"
-    train_data_path = "/home/jovyan/work/dataset/MVAomaly/"+ data_name + "/train"
-    test_data_path = "/home/jovyan/work/dataset/MVAomaly/" + data_name + "/test"
-    train_data = NormalDataset(path=train_data_path)
-    test_data = TestDataset(path=test_data_path)
-    # print(train_data.img_files)
-    for img_file in test_data.img_files:
-        print(img_file)
-
-    # # data loader
-    # from torch.utils.data import DataLoader
-    # # train_data_loader = DataLoader(train_data, batch_size=1, shuffle=True, num_workers=1)
-    # # for normal_img in train_data_loader:
-    # #     print("#############")
-    # #     print(normal_img.shape)
-
-
-    # test_data_loader = DataLoader(test_data, batch_size=1, shuffle=False, num_workers=1)
-    # for abnormal_img, mask, abnormal_img_name in test_data_loader:
-    #     print("#############")
-    #     print(abnormal_img_name)
-    #     print(abnormal_img.shape)
-    #     print(mask.shape)
-    #     print(mask.max(), mask.min())
-
-
-
-
-

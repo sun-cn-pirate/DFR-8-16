@@ -24,6 +24,71 @@ The compatibility work and reproducible commands are developed on the
 `reproduction` branch. Exact setup and execution instructions will be added as
 the smoke tests are validated.
 
+## Environment
+
+The tested host has an NVIDIA RTX 4090, CUDA 13.2, Python 3.12, PyTorch
+2.13.0+cu132, and torchvision 0.28.0+cu132. Create a lightweight virtual
+environment that reuses the host's CUDA-enabled PyTorch, then install the
+remaining packages directly from the official Python Package Index:
+
+```bash
+python3 -m venv --system-site-packages .venv
+.venv/bin/python -m pip install -i https://pypi.org/simple -r requirements.txt
+```
+
+## Dataset
+
+Download MVTec AD from the [official dataset page](https://www.mvtec.com/research-teaching/datasets/mvtec-ad)
+and extract the 15 category folders under `data/mvtec_ad`. If the official form
+is unavailable, the approved research fallback can be downloaded with:
+
+```bash
+.venv/bin/python scripts/download_mvtec.py --output data/mvtec_ad
+```
+
+Always validate the directory structure, published image counts, and masks
+before running an experiment:
+
+```bash
+.venv/bin/python scripts/validate_mvtec.py data/mvtec_ad \
+  --json reports/mvtec_validation.json
+```
+
+Neither the dataset nor generated model weights are tracked by Git.
+
+## Run the reproduction
+
+One-epoch smoke test across all 15 categories:
+
+```bash
+.venv/bin/python DFR-source/main.py \
+  --mode all \
+  --data-root data/mvtec_ad \
+  --categories all \
+  --epochs 1 \
+  --checkpoint-every 1 \
+  --metric-steps 100 \
+  --no-save-visualizations \
+  --resume
+```
+
+Paper-configuration run (700 epochs per category):
+
+```bash
+.venv/bin/python DFR-source/main.py \
+  --mode all \
+  --data-root data/mvtec_ad \
+  --categories all \
+  --epochs 700 \
+  --checkpoint-every 10 \
+  --metric-steps 5000 \
+  --resume
+```
+
+The command writes checkpoints and large visual artifacts below `outputs/`.
+Compact cross-category results are updated in `reports/dfr_mvtec_summary.csv`
+and `reports/dfr_mvtec_summary.md` after each completed category.
+
 Paper: Unsupervised anomaly segmentation via deep feature reconstruction  | **[Neurocomputing]**[`pdf`](https://www.sciencedirect.com/science/article/pii/S0925231220317951)[`code`](https://github.com/YoungGod/DFR) | **arxive preprint**[`pdf`](https://arxiv.org/abs/2012.07122)
 
 Introduction: Automatic detecting anomalous regions in images of objects or textures without priors of the anomalies is challenging, especially when the anomalies appear in very small areas of the images, making difficult-to-detect visual variations, such as defects on manufacturing products.

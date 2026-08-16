@@ -1,0 +1,30 @@
+# Packages installed locally in .venv. PyTorch, torchvision, NumPy, Pillow,
+# and their CUDA dependencies are inherited from the tested host environment.
+anyio==4.14.2
+certifi==2026.7.22
+click==8.4.2
+contourpy==1.3.3
+cycler==0.12.1
+fonttools==4.63.0
+h11==0.16.0
+hf-xet==1.6.0
+httpcore==1.0.9
+httpx==0.28.1
+huggingface_hub==1.27.0
+idna==3.18
+ImageIO==2.37.4
+joblib==1.5.3
+kiwisolver==1.5.0
+lazy-loader==0.5
+matplotlib==3.11.1
+narwhals==2.24.0
+opencv-python-headless==5.0.0.93
+pandas==3.0.5
+pyparsing==3.3.2
+PyYAML==6.0.3
+scikit-image==0.26.0
+scikit-learn==1.9.0
+scipy==1.18.0
+threadpoolctl==3.6.0
+tifffile==2026.8.16
+tqdm==4.70.0

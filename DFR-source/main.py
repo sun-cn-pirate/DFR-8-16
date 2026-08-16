@@ -1,88 +1,287 @@
+"""Command-line entry point for the DFR MVTec AD reproduction."""
+
+from __future__ import annotations
+
 import argparse
-from anoseg_dfr import AnoSegDFR
+import csv
+import json
 import os
+import platform
+import random
+import sys
+from pathlib import Path
+
+import numpy as np
+import torch
+
+from anoseg_dfr import AnoSegDFR
 
 
-def config():
-    parser = argparse.ArgumentParser(description="Settings of DFR")
+TEXTURES = ("carpet", "grid", "leather", "tile", "wood")
+OBJECTS = (
+    "bottle",
+    "cable",
+    "capsule",
+    "hazelnut",
+    "metal_nut",
+    "pill",
+    "screw",
+    "toothbrush",
+    "transistor",
+    "zipper",
+)
+MVTEC_CATEGORIES = OBJECTS + TEXTURES
+PAPER_FEATURE_LAYERS = (
+    "relu1_1",
+    "relu1_2",
+    "relu2_1",
+    "relu2_2",
+    "relu3_1",
+    "relu3_2",
+    "relu3_3",
+    "relu3_4",
+    "relu4_1",
+    "relu4_2",
+    "relu4_3",
+    "relu4_4",
+)
+METRIC_FIELDS = (
+    "category",
+    "det_pr",
+    "det_auc",
+    "seg_pr",
+    "seg_auc",
+    "seg_pro",
+    "seg_iou",
+)
 
-    # positional args
-    parser.add_argument('--mode', type=str, choices=["train", "evaluation"],
-                        default="train", help="train or evaluation")
 
-    # general
-    parser.add_argument('--model_name', type=str, default="", help="specifed model name")
-    parser.add_argument('--save_path', type=str, default=os.getcwd(), help="saving path")
-    parser.add_argument('--img_size', type=int, nargs="+", default=(256, 256), help="image size (hxw)")
-    parser.add_argument('--device', type=str, default="cuda:0", help="device for training and testing")
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Reproduce DFR on MVTec AD")
+    parser.add_argument(
+        "--mode",
+        choices=("train", "evaluate", "evaluation", "all"),
+        default="all",
+        help="Run training, evaluation, or both",
+    )
+    parser.add_argument(
+        "--data-root",
+        type=Path,
+        required=True,
+        help="Directory containing the 15 MVTec AD category folders",
+    )
+    parser.add_argument(
+        "--categories",
+        nargs="+",
+        default=["all"],
+        help="Category names, or 'all'",
+    )
+    parser.add_argument("--output-dir", type=Path, default=Path("outputs"))
+    parser.add_argument("--report-dir", type=Path, default=Path("reports"))
+    parser.add_argument("--model-name", default="")
+    parser.add_argument("--device", default="cuda:0")
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument("--resume", action=argparse.BooleanOptionalAction, default=True)
 
-    # parameters for the regional feature generator
-    parser.add_argument('--backbone', type=str, default="vgg19", help="backbone net")
+    parser.add_argument("--img-size", type=int, nargs=2, default=(256, 256))
+    parser.add_argument("--backbone", default="vgg19", choices=("vgg19",))
+    parser.add_argument("--cnn-layers", nargs="+", default=PAPER_FEATURE_LAYERS)
+    parser.add_argument("--upsample", choices=("nearest", "bilinear"), default="nearest")
+    parser.add_argument("--aggregate", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--featmap-size", type=int, nargs=2, default=(256, 256))
+    parser.add_argument("--kernel-size", type=int, nargs=2, default=(4, 4))
+    parser.add_argument("--stride", type=int, nargs=2, default=(4, 4))
+    parser.add_argument("--dilation", type=int, default=1)
 
-    cnn_layers = ('relu4_1', 'relu4_2', 'relu4_3', 'relu4_4')
-    parser.add_argument('--cnn_layers', type=str, nargs="+", default=cnn_layers, help="cnn feature layers to use")
-    parser.add_argument('--upsample', type=str, default="bilinear", help="operation for resizing cnn map")
-    parser.add_argument('--is_agg', type=bool, default=True, help="if to aggregate the features")
-    parser.add_argument('--featmap_size', type=int, nargs="+", default=(256, 256), help="feat map size (hxw)")
-    parser.add_argument('--kernel_size', type=int, nargs="+", default=(4, 4), help="aggregation kernel (hxw)")
-    parser.add_argument('--stride', type=int, nargs="+", default=(4, 4), help="stride of the kernel (hxw)")
-    parser.add_argument('--dilation', type=int, default=1, help="dilation of the kernel")
+    parser.add_argument("--latent-dim", type=int, default=None)
+    parser.add_argument("--batch-norm", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--batch-size", type=int, default=4)
+    parser.add_argument("--lr", type=float, default=1e-4)
+    parser.add_argument("--epochs", type=int, default=700)
+    parser.add_argument("--checkpoint-every", type=int, default=10)
 
-    # training and testing
-    # default values
-    data_name = "bottle"
-    train_data_path = "/home/jie/Datasets/MVAomaly/" + data_name + "/train/good"
-    test_data_path = "/home/jie/Datasets/dataset/MVAomaly/" + data_name + "/test"
+    parser.add_argument("--threshold", type=float, default=0.5)
+    parser.add_argument("--expected-fpr", type=float, default=0.3)
+    parser.add_argument("--metric-steps", type=int, default=5000)
+    parser.add_argument(
+        "--save-visualizations",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    return parser.parse_args()
 
-    parser.add_argument('--data_name', type=str, default=data_name, help="data name")
-    parser.add_argument('--train_data_path', type=str, default=train_data_path, help="training data path")
-    parser.add_argument('--test_data_path', type=str, default=test_data_path, help="testing data path")
 
-    # CAE
-    parser.add_argument('--latent_dim', type=int, default=None, help="latent dimension of CAE")
-    parser.add_argument('--is_bn', type=bool, default=True, help="if using bn layer in CAE")
-    parser.add_argument('--batch_size', type=int, default=4, help="batch size for training")
-    parser.add_argument('--lr', type=float, default=1e-4, help="learning rate")
-    parser.add_argument('--epochs', type=int, default=150, help="epochs for training")    # default 700, for wine 150
+def select_categories(requested: list[str]) -> tuple[str, ...]:
+    if requested == ["all"]:
+        return MVTEC_CATEGORIES
+    unknown = sorted(set(requested) - set(MVTEC_CATEGORIES))
+    if unknown:
+        raise ValueError(
+            f"Unknown MVTec categories: {', '.join(unknown)}. "
+            f"Choose from: {', '.join(MVTEC_CATEGORIES)}"
+        )
+    return tuple(dict.fromkeys(requested))
 
-    # segmentation evaluation
-    parser.add_argument('--thred', type=float, default=0.5, help="threshold for segmentation")
-    parser.add_argument('--except_fpr', type=float, default=0.005, help="fpr to estimate segmentation threshold")
 
-    args = parser.parse_args()
+def seed_everything(seed: int) -> None:
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
 
-    return args
+
+def validate_runtime(args: argparse.Namespace, categories: tuple[str, ...]) -> None:
+    if args.device.startswith("cuda") and not torch.cuda.is_available():
+        raise RuntimeError(f"CUDA device requested ({args.device}), but CUDA is unavailable")
+    if args.epochs < 1:
+        raise ValueError("--epochs must be at least 1")
+    for category in categories:
+        category_dir = args.data_root / category
+        required = (category_dir / "train" / "good", category_dir / "test")
+        missing = [str(path) for path in required if not path.is_dir()]
+        if missing:
+            raise FileNotFoundError(
+                f"Incomplete MVTec category '{category}'; missing: {', '.join(missing)}"
+            )
+
+
+def build_category_config(args: argparse.Namespace, category: str) -> argparse.Namespace:
+    cfg = argparse.Namespace(**vars(args))
+    category_dir = args.data_root / category
+    cfg.data_name = category
+    cfg.train_data_path = str(category_dir / "train" / "good")
+    cfg.test_data_path = str(category_dir / "test")
+    cfg.save_path = str(args.output_dir)
+    cfg.model_name = args.model_name
+    cfg.img_size = tuple(args.img_size)
+    cfg.cnn_layers = tuple(args.cnn_layers)
+    cfg.is_agg = args.aggregate
+    cfg.featmap_size = tuple(args.featmap_size)
+    cfg.kernel_size = tuple(args.kernel_size)
+    cfg.stride = tuple(args.stride)
+    cfg.is_bn = args.batch_norm
+    cfg.thred = args.threshold
+    cfg.except_fpr = args.expected_fpr
+    return cfg
+
+
+def write_summary(rows: list[dict[str, float | str]], report_dir: Path, args: argparse.Namespace) -> None:
+    report_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = report_dir / "dfr_mvtec_summary.csv"
+    with csv_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=METRIC_FIELDS)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    numeric_fields = METRIC_FIELDS[1:]
+    means = {
+        key: float(np.mean([float(row[key]) for row in rows]))
+        for key in numeric_fields
+    } if rows else {}
+    metadata = {
+        "python": platform.python_version(),
+        "torch": torch.__version__,
+        "torchvision": __import__("torchvision").__version__,
+        "cuda": torch.version.cuda,
+        "device": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu",
+        "seed": args.seed,
+        "epochs": args.epochs,
+        "categories_completed": len(rows),
+        "means": means,
+    }
+    (report_dir / "environment.json").write_text(
+        json.dumps(metadata, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+    lines = [
+        "# DFR MVTec AD reproduction results",
+        "",
+        f"Completed categories: {len(rows)}/15; epochs per category: {args.epochs}.",
+        "",
+        "| Category | Det AP | Det AUC | Seg AP | Seg AUC | PRO-AUC | Best IoU |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    for row in rows:
+        lines.append(
+            "| {category} | {det_pr:.5f} | {det_auc:.5f} | {seg_pr:.5f} | "
+            "{seg_auc:.5f} | {seg_pro:.5f} | {seg_iou:.5f} |".format(**row)
+        )
+    if rows:
+        lines.append(
+            "| **Mean** | "
+            + " | ".join(f"**{means[key]:.5f}**" for key in numeric_fields)
+            + " |"
+        )
+    lines.extend([
+        "",
+        "The upstream project does not publish complete package versions or all random-state details; "
+        "differences from the paper are reported without hidden tuning.",
+        "",
+    ])
+    (report_dir / "dfr_mvtec_summary.md").write_text("\n".join(lines), encoding="utf-8")
+
+
+def load_summary(report_dir: Path) -> list[dict[str, float | str]]:
+    csv_path = report_dir / "dfr_mvtec_summary.csv"
+    if not csv_path.is_file():
+        return []
+    with csv_path.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    return [
+        {
+            "category": row["category"],
+            **{key: float(row[key]) for key in METRIC_FIELDS[1:]},
+        }
+        for row in rows
+        if row.get("category") in MVTEC_CATEGORIES
+    ]
+
+
+def main() -> int:
+    args = parse_args()
+    args.data_root = args.data_root.expanduser().resolve()
+    args.output_dir = args.output_dir.expanduser().resolve()
+    args.report_dir = args.report_dir.expanduser().resolve()
+    categories = select_categories(args.categories)
+    validate_runtime(args, categories)
+    seed_everything(args.seed)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+
+    mode = "evaluate" if args.mode == "evaluation" else args.mode
+    rows = load_summary(args.report_dir)
+    for category in categories:
+        print(f"\n{'=' * 72}\nDFR category: {category}\n{'=' * 72}", flush=True)
+        cfg = build_category_config(args, category)
+        dfr = AnoSegDFR(cfg)
+        if mode in ("train", "all"):
+            dfr.train(resume=args.resume)
+        if mode in ("evaluate", "all"):
+            metrics = dfr.metrics_evaluation(
+                expect_fpr=args.expected_fpr,
+                max_step=args.metric_steps,
+                save_visualizations=args.save_visualizations,
+            )
+            if metrics is None:
+                raise RuntimeError(f"Evaluation failed for category '{category}'")
+            rows = [row for row in rows if row["category"] != category]
+            rows.append({"category": category, **metrics})
+            category_order = {name: index for index, name in enumerate(MVTEC_CATEGORIES)}
+            rows.sort(key=lambda row: category_order[str(row["category"])])
+            write_summary(rows, args.report_dir, args)
+        del dfr
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    return 0
+
 
 if __name__ == "__main__":
-
-    #########################################
-    #    On the whole data
-    #########################################
-    cfg = config()
-    cfg.save_path = "/home/jie/Python-Workspace/Pycharm-Projects/Anomaly-2020/DFR-Baseline"
-    # cfg.model_name = ""
-
-    # feature extractor
-#     cfg.cnn_layers = ('relu4_1', 'relu4_2', 'relu4_3', 'relu4_4')
-    cfg.cnn_layers = ('relu1_1', 'relu1_2', 'relu2_1', 'relu2_2',
-                  'relu3_1', 'relu3_2', 'relu3_3', 'relu3_4',
-                  'relu4_1', 'relu4_2', 'relu4_3', 'relu4_4')
-
-    # dataset
-    textures = ['carpet', 'grid', 'leather', 'tile', 'wood']
-    objects = ['bottle','cable', 'capsule','hazelnut', 'metal_nut',
-               'pill', 'screw', 'toothbrush', 'transistor', 'zipper'] 
-    data_names = objects + textures
-
-    # train or evaluation
-    for data_name in data_names:
-        cfg.data_name = data_name
-        cfg.train_data_path = "/home/jie/Datasets/MVAomaly/" + data_name + "/train/good"
-        cfg.test_data_path = "/home/jie/Datasets/MVAomaly/" + data_name + "/test"
-
-        dfr = AnoSegDFR(cfg)
-        if cfg.mode == "train":
-            dfr.train()
-        else:
-            dfr.metrics_evaluation()
-#             dfr.metrics_detecion()
+    try:
+        raise SystemExit(main())
+    except (FileNotFoundError, RuntimeError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        raise SystemExit(2)

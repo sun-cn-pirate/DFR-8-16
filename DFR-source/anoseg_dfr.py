@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 from skimage.io import imsave
 from skimage import measure
 from skimage.transform import resize
+from skimage.util import img_as_ubyte
 import pandas as pd
 
 from feat_cae import FeatCAE
@@ -62,9 +63,29 @@ class AnoSegDFR():
         self.test_data = self.build_dataset(is_train=False)
 
         # dataloader
-        self.train_data_loader = DataLoader(self.train_data, batch_size=cfg.batch_size, shuffle=True, num_workers=4)
-        self.test_data_loader = DataLoader(self.test_data, batch_size=1, shuffle=False, num_workers=1)
-        self.eval_data_loader = DataLoader(self.train_data, batch_size=10, shuffle=False, num_workers=2)
+        workers = getattr(cfg, "workers", 4)
+        pin_memory = self.device.type == "cuda"
+        self.train_data_loader = DataLoader(
+            self.train_data,
+            batch_size=cfg.batch_size,
+            shuffle=True,
+            num_workers=workers,
+            pin_memory=pin_memory,
+        )
+        self.test_data_loader = DataLoader(
+            self.test_data,
+            batch_size=1,
+            shuffle=False,
+            num_workers=min(workers, 2),
+            pin_memory=pin_memory,
+        )
+        self.eval_data_loader = DataLoader(
+            self.train_data,
+            batch_size=10,
+            shuffle=False,
+            num_workers=min(workers, 2),
+            pin_memory=pin_memory,
+        )
 
 
         # autoencoder classifier
@@ -91,13 +112,14 @@ class AnoSegDFR():
         if self.n_dim is None:
             print("Estimating one class classifier AE parameter...")
             feats = torch.Tensor()
-            for i, normal_img in enumerate(self.eval_data_loader):
-                i += 1
-                if i > 1:
-                    break
-                normal_img = normal_img.to(self.device)
-                feat = self.extractor.feat_vec(normal_img)
-                feats = torch.cat([feats, feat.cpu()], dim=0)
+            self.extractor.eval()
+            with torch.no_grad():
+                for i, normal_img in enumerate(self.eval_data_loader):
+                    if i > 0:
+                        break
+                    normal_img = normal_img.to(self.device, non_blocking=True)
+                    feat = self.extractor.feat_vec(normal_img)
+                    feats = torch.cat([feats, feat.cpu()], dim=0)
             # to numpy
             feats = feats.detach().numpy()
             # estimate parameters for mlp
@@ -107,12 +129,13 @@ class AnoSegDFR():
             print("AE Parameter (in_feat, n_dim): ({}, {})".format(in_feat, n_dim))
             self.n_dim = n_dim
         else:
-            for i, normal_img in enumerate(self.eval_data_loader):
-                i += 1
-                if i > 1:
-                    break
-                normal_img = normal_img.to(self.device)
-                feat = self.extractor.feat_vec(normal_img)
+            self.extractor.eval()
+            with torch.no_grad():
+                for i, normal_img in enumerate(self.eval_data_loader):
+                    if i > 0:
+                        break
+                    normal_img = normal_img.to(self.device, non_blocking=True)
+                    feat = self.extractor.feat_vec(normal_img)
             in_feat = feat.shape[1]
 
         print("BN?:", self.cfg.is_bn)
@@ -134,28 +157,27 @@ class AnoSegDFR():
             dataset = TestDataset(path=abnormal_data_path)
         return dataset
 
-    def train(self):
-        if self.load_model():
-            print("Model Loaded.")
-            return
-
+    def train(self, resume=True):
         start_time = time.time()
-
-        # train
         iters_per_epoch = len(self.train_data_loader)  # total iterations every epoch
         epochs = self.cfg.epochs  # total epochs
-        for epoch in range(1, epochs+1):
-            self.extractor.train()
+        start_epoch = self.load_training_checkpoint() + 1 if resume else 1
+        if start_epoch > epochs:
+            print(f"Training already complete at epoch {start_epoch - 1}.")
+            return
+
+        for epoch in range(start_epoch, epochs+1):
+            self.extractor.eval()
             self.autoencoder.train()
             losses = []
             for i, normal_img in enumerate(self.train_data_loader):
-                normal_img = normal_img.to(self.device)
+                normal_img = normal_img.to(self.device, non_blocking=True)
                 # forward and backward
                 total_loss = self.optimize_step(normal_img)
 
                 # statistics and logging
                 loss = {}
-                loss['total_loss'] = total_loss.data.item()
+                loss['total_loss'] = total_loss.item()
                 
                 # tracking loss
                 losses.append(loss['total_loss'])
@@ -181,9 +203,10 @@ class AnoSegDFR():
                     log += ", {}: {:.4f}".format(tag, value)
                 print(log)
 
-            if epoch % 10 == 0:
+            checkpoint_every = getattr(self.cfg, "checkpoint_every", 10)
+            if epoch % checkpoint_every == 0:
                 # save model
-                self.save_model()
+                self.save_model(epoch)
                 self.validation(epoch)
 
 #             print("Cost total time {}s".format(time.time() - start_time))
@@ -191,7 +214,7 @@ class AnoSegDFR():
             self.tracking_loss(epoch, np.mean(np.array(losses)))
 
         # save model
-        self.save_model()
+        self.save_model(epochs)
         print("Cost total time {}s".format(time.time() - start_time))
         print("Done.")
 
@@ -204,19 +227,20 @@ class AnoSegDFR():
             f.write(str(epoch) + "," + str(loss) + "\n")
 
     def optimize_step(self, input_data):
-        self.extractor.train()
+        self.extractor.eval()
         self.autoencoder.train()
 
         self.optimizer.zero_grad()
 
         # forward
-        input_data = self.extractor(input_data)
+        with torch.no_grad():
+            input_data = self.extractor(input_data)
 
         # print(input_data.size())
         dec = self.autoencoder(input_data)
 
         # loss
-        total_loss = self.autoencoder.loss_function(dec, input_data.detach().data)
+        total_loss = self.autoencoder.loss_function(dec, input_data)
 
         # self.reset_grad()
         total_loss.backward()
@@ -235,11 +259,10 @@ class AnoSegDFR():
         self.extractor.eval()
         self.autoencoder.eval()
 
-        input = self.extractor(input)
-        dec = self.autoencoder(input)
-
-        # sample energy
-        scores = self.autoencoder.compute_energy(dec, input)
+        with torch.no_grad():
+            input = self.extractor(input)
+            dec = self.autoencoder(input)
+            scores = self.autoencoder.compute_energy(dec, input)
         scores = scores.reshape((1, 1, self.extractor.out_size[0], self.extractor.out_size[1]))    # test batch size is 1.
         scores = nn.functional.interpolate(scores, size=self.img_size, mode="bilinear", align_corners=True).squeeze()
         # print("score shape:", scores.shape)
@@ -253,7 +276,7 @@ class AnoSegDFR():
             score map and binary score map with shape (img_size_h, img_size_w)
         """
         # predict
-        scores = self.score(input).data.cpu().numpy()
+        scores = self.score(input).detach().cpu().numpy()
 
         # binary score
         print("threshold:", threshold)
@@ -332,13 +355,25 @@ class AnoSegDFR():
         img_name = "-".join(img_name[-2:])
         print(img_name)
         # score map
-        imsave(os.path.join(score_map_path, "{}".format(img_name)), scores)
+        imsave(
+            os.path.join(score_map_path, "{}".format(img_name)),
+            img_as_ubyte(np.clip(scores, 0, 1)),
+            check_contrast=False,
+        )
 
         # binary score map
-        imsave(os.path.join(binary_score_map_path, "{}".format(img_name)), binary_scores)
+        imsave(
+            os.path.join(binary_score_map_path, "{}".format(img_name)),
+            img_as_ubyte(binary_scores.astype(bool)),
+            check_contrast=False,
+        )
 
         # mask
-        imsave(os.path.join(mask_path, "{}".format(img_name)), mask)
+        imsave(
+            os.path.join(mask_path, "{}".format(img_name)),
+            img_as_ubyte(np.clip(mask, 0, 1)),
+            check_contrast=False,
+        )
 
         # # pred vs gt map
         # imsave(os.path.join(gt_pred_score_map, "{}".format(img_name)), normalize(binary_scores + mask))
@@ -349,10 +384,26 @@ class AnoSegDFR():
                      score_map_path=binary_score_map_path, saving_path=gt_pred_seg_image_path)
 
     def save_model(self, epoch=0):
-        # save model weights
-        torch.save({'autoencoder': self.autoencoder.state_dict()},
+        torch.save({
+                       'epoch': epoch,
+                       'autoencoder': self.autoencoder.state_dict(),
+                       'optimizer': self.optimizer.state_dict(),
+                       'n_dim': self.n_dim,
+                   },
                    os.path.join(self.model_path, 'autoencoder.pth'))
         np.save(os.path.join(self.model_path, 'n_dim.npy'), self.n_dim)
+
+    def load_training_checkpoint(self):
+        model_path = os.path.join(self.model_path, 'autoencoder.pth')
+        if not os.path.exists(model_path):
+            return 0
+        data = torch.load(model_path, map_location=self.device, weights_only=True)
+        self.autoencoder.load_state_dict(data['autoencoder'])
+        if 'optimizer' in data:
+            self.optimizer.load_state_dict(data['optimizer'])
+        epoch = int(data.get('epoch', 0))
+        print(f"Resuming {self.data_name} from epoch {epoch}: {model_path}")
+        return epoch
 
     def load_model(self, path=None):
         print("Loading model...")
@@ -363,11 +414,7 @@ class AnoSegDFR():
                 print("Model not exists.")
                 return False
 
-            if torch.cuda.is_available():
-                data = torch.load(model_path)
-            else:
-                data = torch.load(model_path,
-                                  map_location=lambda storage, loc: storage)  # Load all tensors onto the CPU, using a function
+            data = torch.load(model_path, map_location=self.device, weights_only=True)
 
             self.autoencoder.load_state_dict(data['autoencoder'])
             print("Model loaded:", model_path)
@@ -449,7 +496,7 @@ class AnoSegDFR():
         scores_list = []
         for i, normal_img in enumerate(self.train_data_loader):
             normal_img = normal_img[0:1].to(self.device)
-            scores_list.append(self.score(normal_img).data.cpu().numpy())
+            scores_list.append(self.score(normal_img).detach().cpu().numpy())
         scores = np.concatenate(scores_list, axis=0)
 
         # find the optimal threshold
@@ -550,7 +597,7 @@ class AnoSegDFR():
             mask = mask.squeeze().numpy()
 
             # score
-            score = self.score(img).data.cpu().numpy()
+            score = self.score(img).detach().cpu().numpy()
 
             masks.append(mask)
             scores.append(score)
@@ -560,7 +607,7 @@ class AnoSegDFR():
         masks = np.array(masks)
         masks[masks <= 0.5] = 0
         masks[masks > 0.5] = 1
-        masks = masks.astype(np.bool)
+        masks = masks.astype(bool)
         scores = np.array(scores)
 
         # auc score
@@ -574,7 +621,7 @@ class AnoSegDFR():
         with open(out_file, mode='a+') as f:
             f.write(str(epoch) + "," + str(auc_score) + "\n")
 
-    def metrics_evaluation(self, expect_fpr=0.3, max_step=5000):
+    def metrics_evaluation(self, expect_fpr=0.3, max_step=5000, save_visualizations=True):
         from sklearn.metrics import auc
         from sklearn.metrics import roc_auc_score, average_precision_score
         from skimage import measure
@@ -597,10 +644,15 @@ class AnoSegDFR():
 
             # anomaly score
             # anomaly_map = self.score(img).data.cpu().numpy()
-            anomaly_map = self.score(img).data.cpu().numpy()
+            anomaly_map = self.score(img).detach().cpu().numpy()
 
             masks.append(mask)
             scores.append(anomaly_map)
+            if save_visualizations:
+                score_range = anomaly_map.max() - anomaly_map.min()
+                normalized = (anomaly_map - anomaly_map.min()) / score_range if score_range > 0 else np.zeros_like(anomaly_map)
+                binary = (normalized > self.threshold).astype(np.uint8)
+                self.save_seg_results(normalized, binary, mask, name[0])
             #print("Batch {},".format(i), "Cost total time {}s".format(time.time() - time_start))
 
         # as array
@@ -610,7 +662,7 @@ class AnoSegDFR():
         # binary masks
         masks[masks <= 0.5] = 0
         masks[masks > 0.5] = 1
-        masks = masks.astype(np.bool)
+        masks = masks.astype(bool)
         
         # auc score (image level) for detection
         labels = masks.any(axis=1).any(axis=1)
@@ -637,7 +689,7 @@ class AnoSegDFR():
         pros_std = []
         threds = []
         fprs = []
-        binary_score_maps = np.zeros_like(scores, dtype=np.bool)
+        binary_score_maps = np.zeros_like(scores, dtype=bool)
         for step in range(max_step):
             thred = max_th - step * delta
             # segmentation
@@ -715,7 +767,16 @@ class AnoSegDFR():
         # save auc, pro as 30 fpr
         with open(os.path.join(self.eval_path, 'pr_auc_pro_iou_{}.csv'.format(expect_fpr)), mode='w') as f:
                 f.write("det_pr, det_auc, seg_pr, seg_auc, seg_pro, seg_iou\n")
-                f.write(f"{det_pr_score:.5f},{det_auc_score:.5f},{seg_pr_score:.5f},{seg_auc_score:.5f},{pro_auc_score:.5f},{best_miou:.5f}")    
+                f.write(f"{det_pr_score:.5f},{det_auc_score:.5f},{seg_pr_score:.5f},{seg_auc_score:.5f},{pro_auc_score:.5f},{best_miou:.5f}")
+
+        return {
+            'det_pr': float(det_pr_score),
+            'det_auc': float(det_auc_score),
+            'seg_pr': float(seg_pr_score),
+            'seg_auc': float(seg_auc_score),
+            'seg_pro': float(pro_auc_score),
+            'seg_iou': float(best_miou),
+        }
             
 
     def metrics_detecion(self, expect_fpr=0.3, max_step=5000):
@@ -741,7 +802,7 @@ class AnoSegDFR():
 
             # anomaly score
             # anomaly_map = self.score(img).data.cpu().numpy()
-            anomaly_map = self.score(img).data.cpu().numpy()
+            anomaly_map = self.score(img).detach().cpu().numpy()
 
             masks.append(mask)
             scores.append(anomaly_map)
@@ -754,7 +815,7 @@ class AnoSegDFR():
         # binary masks
         masks[masks <= 0.5] = 0
         masks[masks > 0.5] = 1
-        masks = masks.astype(np.bool)
+        masks = masks.astype(bool)
         
         # auc score (image level) for detection
         labels = masks.any(axis=1).any(axis=1)

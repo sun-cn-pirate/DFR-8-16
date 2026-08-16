@@ -111,7 +111,7 @@ class FeatCAE(nn.Module):
 ################################################
 
 def channel_shuffle(x, groups):
-    batchsize, num_channels, height, width = x.data.size()
+    batchsize, num_channels, height, width = x.size()
 
     channels_per_group = num_channels // groups
     
@@ -131,7 +131,7 @@ class ChannelShuffle(nn.Module):
         self.groups = groups
 
     def forward(x):
-        batchsize, num_channels, height, width = x.data.size()
+        batchsize, num_channels, height, width = x.size()
         channels_per_group = num_channels // self.groups
         # reshape
         x = x.view(batchsize, groups, 
