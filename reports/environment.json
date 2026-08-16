@@ -7,14 +7,14 @@
   "seed": 0,
   "target_epochs": 700,
   "categories_completed": 15,
-  "categories_at_target": 4,
-  "legacy_timing_rows": 4,
+  "categories_at_target": 5,
+  "legacy_timing_rows": 3,
   "means": {
-    "det_pr": 0.8948386895326206,
-    "det_auc": 0.7896840263711759,
-    "seg_pr": 0.25885900978029514,
-    "seg_auc": 0.8360535135407922,
-    "seg_pro": 0.6740422620172782,
-    "seg_iou": 0.2024665335814158
+    "det_pr": 0.9035293423876378,
+    "det_auc": 0.8107658119690905,
+    "seg_pr": 0.28423733171921234,
+    "seg_auc": 0.8504941459570545,
+    "seg_pro": 0.7034778709174238,
+    "seg_iou": 0.20969331761201224
   }
 }
