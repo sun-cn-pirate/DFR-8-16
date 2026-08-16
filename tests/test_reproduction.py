@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import sys
 import tempfile
 import unittest
@@ -103,9 +104,33 @@ class CliTests(unittest.TestCase):
             self.assertEqual(loaded[0]["epochs"], 1)
             self.assertEqual(loaded[0]["latent_dim"], 197)
             self.assertAlmostEqual(float(loaded[0]["seg_auc"]), 0.81)
+            with (Path(temp_dir) / "dfr_mvtec_summary.csv").open(
+                newline="", encoding="utf-8"
+            ) as handle:
+                csv_rows = list(csv.DictReader(handle))
+            self.assertAlmostEqual(float(csv_rows[0]["paper_seg_auc"]), 0.95)
+            self.assertAlmostEqual(float(csv_rows[0]["seg_auc_delta"]), -0.14)
+            report = (Path(temp_dir) / "dfr_mvtec_summary.md").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("Comparison with the paper", report)
+            self.assertIn("reproduction minus paper", report)
 
 
 class CheckpointTests(unittest.TestCase):
+    def test_loss_curve_is_generated_from_epoch_history(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            dfr = object.__new__(AnoSegDFR)
+            dfr.eval_path = temp_dir
+            dfr.model_name = "synthetic-model"
+            dfr.data_name = "synthetic"
+            dfr.tracking_loss(1, 0.25)
+            dfr.tracking_loss(2, 0.125)
+            dfr.plot_loss_curve()
+            self.assertTrue(
+                (Path(temp_dir) / "synthetic-model_loss.png").is_file()
+            )
+
     def test_training_checkpoint_restores_epoch_and_weights(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             model = torch.nn.Linear(2, 1)

@@ -6,15 +6,15 @@
   "device": "NVIDIA GeForce RTX 4090",
   "seed": 0,
   "target_epochs": 1,
-  "categories_completed": 8,
-  "categories_at_target": 8,
+  "categories_completed": 13,
+  "categories_at_target": 13,
   "legacy_timing_rows": 8,
   "means": {
-    "det_pr": 0.8955820825683305,
-    "det_auc": 0.740826661487417,
-    "seg_pr": 0.23148187591948954,
-    "seg_auc": 0.7961373416473854,
-    "seg_pro": 0.6168596778311638,
-    "seg_iou": 0.20049301953986287
+    "det_pr": 0.8584448159326331,
+    "det_auc": 0.7086417606800891,
+    "seg_pr": 0.1828522964360063,
+    "seg_auc": 0.7926844192977605,
+    "seg_pro": 0.6060853554313803,
+    "seg_iou": 0.15917296306445047
   }
 }

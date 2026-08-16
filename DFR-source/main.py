@@ -58,6 +58,10 @@ METRIC_FIELDS = (
     "seg_auc",
     "seg_pro",
     "seg_iou",
+    "paper_seg_auc",
+    "seg_auc_delta",
+    "paper_seg_pro",
+    "seg_pro_delta",
 )
 METRIC_VALUE_FIELDS = (
     "det_pr",
@@ -67,6 +71,24 @@ METRIC_VALUE_FIELDS = (
     "seg_pro",
     "seg_iou",
 )
+PAPER_F12_RESULTS = {
+    # Paper Tables II and III, "Ours f{1:12}". ROC-AUC is pixel-level.
+    "carpet": {"seg_auc": 0.96, "seg_pro": 0.93},
+    "grid": {"seg_auc": 0.98, "seg_pro": 0.93},
+    "leather": {"seg_auc": 0.99, "seg_pro": 0.97},
+    "tile": {"seg_auc": 0.86, "seg_pro": 0.79},
+    "wood": {"seg_auc": 0.94, "seg_pro": 0.93},
+    "bottle": {"seg_auc": 0.95, "seg_pro": 0.92},
+    "cable": {"seg_auc": 0.88, "seg_pro": 0.77},
+    "capsule": {"seg_auc": 0.98, "seg_pro": 0.96},
+    "hazelnut": {"seg_auc": 0.98, "seg_pro": 0.97},
+    "metal_nut": {"seg_auc": 0.90, "seg_pro": 0.87},
+    "pill": {"seg_auc": 0.96, "seg_pro": 0.96},
+    "screw": {"seg_auc": 0.99, "seg_pro": 0.95},
+    "toothbrush": {"seg_auc": 0.98, "seg_pro": 0.93},
+    "transistor": {"seg_auc": 0.75, "seg_pro": 0.77},
+    "zipper": {"seg_auc": 0.96, "seg_pro": 0.89},
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -191,6 +213,15 @@ def write_summary(rows: list[dict[str, float | str]], report_dir: Path, args: ar
         normalized.setdefault("latent_dim", 0)
         normalized.setdefault("train_seconds", 0.0)
         normalized.setdefault("eval_seconds", 0.0)
+        paper = PAPER_F12_RESULTS[str(normalized["category"])]
+        normalized["paper_seg_auc"] = paper["seg_auc"]
+        normalized["seg_auc_delta"] = (
+            float(normalized["seg_auc"]) - paper["seg_auc"]
+        )
+        normalized["paper_seg_pro"] = paper["seg_pro"]
+        normalized["seg_pro_delta"] = (
+            float(normalized["seg_pro"]) - paper["seg_pro"]
+        )
         normalized_rows.append(normalized)
     rows = normalized_rows
     csv_path = report_dir / "dfr_mvtec_summary.csv"
@@ -256,6 +287,21 @@ def write_summary(rows: list[dict[str, float | str]], report_dir: Path, args: ar
             + " | ".join(f"**{means[key]:.5f}**" for key in numeric_fields)
             + " |"
         )
+        lines.extend([
+            "",
+            "## Comparison with the paper's 12-layer configuration",
+            "",
+            "The paper reports pixel ROC-AUC and PRO-AUC; delta is reproduction minus paper.",
+            "",
+            "| Category | Seg AUC | Paper Seg AUC | Delta | PRO-AUC | Paper PRO-AUC | Delta |",
+            "|---|---:|---:|---:|---:|---:|---:|",
+        ])
+        for row in rows:
+            lines.append(
+                "| {category} | {seg_auc:.5f} | {paper_seg_auc:.2f} | "
+                "{seg_auc_delta:+.5f} | {seg_pro:.5f} | {paper_seg_pro:.2f} | "
+                "{seg_pro_delta:+.5f} |".format(**row)
+            )
     lines.extend([
         "",
         "A zero timing value marks a smoke result produced before cumulative timing metadata was introduced.",

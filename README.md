@@ -90,6 +90,21 @@ conda run -n dfr python DFR-source/main.py \
   --resume
 ```
 
+For a long-running server experiment, use the resumable serial runner. It
+validates the complete dataset first, writes a persistent per-category log
+under `outputs/logs/`, checks every metric for finite values, and commits and
+pushes only the compact reports after each successful category:
+
+```bash
+mkdir -p outputs
+nohup conda run --no-capture-output -n dfr python \
+  scripts/run_full_reproduction.py \
+  > outputs/full-reproduction.log 2>&1 &
+```
+
+Rerunning the same command resumes the saved epoch for the interrupted
+category. Pass `--no-push` when publication is not wanted.
+
 The command writes checkpoints and large visual artifacts below `outputs/`.
 Compact cross-category results are updated in `reports/dfr_mvtec_summary.csv`
 and `reports/dfr_mvtec_summary.md` after each completed category.

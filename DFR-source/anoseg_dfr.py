@@ -194,6 +194,7 @@ class AnoSegDFR():
         start_epoch = self.load_training_checkpoint() + 1 if resume else 1
         if start_epoch > epochs:
             print(f"Training already complete at epoch {start_epoch - 1}.")
+            self.plot_loss_curve()
             return
 
         for epoch in range(start_epoch, epochs+1):
@@ -251,6 +252,7 @@ class AnoSegDFR():
             elapsed_before_resume + time.time() - start_time
         )
         self.save_model(epochs)
+        self.plot_loss_curve()
         print("Cost total time {}s".format(time.time() - start_time))
         print("Done.")
 
@@ -261,6 +263,28 @@ class AnoSegDFR():
                 f.write("Epoch" + ",loss" + "\n")
         with open(out_file, mode='a+') as f:
             f.write(str(epoch) + "," + str(loss) + "\n")
+
+    def plot_loss_curve(self):
+        loss_path = os.path.join(
+            self.eval_path, '{}_epoch_loss.csv'.format(self.model_name)
+        )
+        if not os.path.isfile(loss_path):
+            return
+        history = pd.read_csv(loss_path)
+        if history.empty:
+            return
+        figure, axis = plt.subplots(figsize=(8, 4.5))
+        axis.plot(history['Epoch'], history['loss'], linewidth=1.25)
+        axis.set_xlabel('Epoch')
+        axis.set_ylabel('Reconstruction loss')
+        axis.set_title(f'DFR training loss: {self.data_name}')
+        axis.grid(alpha=0.25)
+        figure.tight_layout()
+        figure.savefig(
+            os.path.join(self.eval_path, f'{self.model_name}_loss.png'),
+            dpi=160,
+        )
+        plt.close(figure)
 
     def optimize_step(self, input_data):
         self.extractor.eval()
