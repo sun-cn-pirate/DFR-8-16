@@ -1,6 +1,6 @@
 # DFR MVTec AD reproduction results
 
-Reported categories: 15/15; categories at the current 700-epoch target: 13/15.
+Reported categories: 15/15; categories at the current 700-epoch target: 14/15.
 
 | Category | Epochs | PCA dim | Train (h) | Eval (s) | Det AP | Det AUC | Seg AP | Seg AUC | PRO-AUC | Best IoU |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -17,9 +17,9 @@ Reported categories: 15/15; categories at the current 700-epoch target: 13/15.
 | carpet | 700 | 383 | 1.196 | 107.7 | 0.99229 | 0.97271 | 0.58681 | 0.97872 | 0.94106 | 0.41786 |
 | grid | 700 | 209 | 0.972 | 77.2 | 0.98806 | 0.96408 | 0.33104 | 0.97013 | 0.90134 | 0.27643 |
 | leather | 700 | 432 | 1.110 | 114.2 | 0.99586 | 0.98743 | 0.48427 | 0.98983 | 0.97902 | 0.31248 |
-| tile | 1 | 633 | 0.004 | 22.7 | 0.92564 | 0.83586 | 0.17413 | 0.67599 | 0.47973 | 0.15533 |
+| tile | 700 | 633 | 1.152 | 111.1 | 0.97104 | 0.92821 | 0.36372 | 0.89082 | 0.77354 | 0.31954 |
 | wood | 1 | 437 | 0.012 | 39.9 | 0.98895 | 0.96228 | 0.38067 | 0.92606 | 0.77825 | 0.28279 |
-| **Mean metrics** |  |  |  |  | **0.96566** | **0.92823** | **0.44382** | **0.93169** | **0.86188** | **0.30675** |
+| **Mean metrics** |  |  |  |  | **0.96869** | **0.93439** | **0.45646** | **0.94601** | **0.88147** | **0.31770** |
 
 ## Comparison with the paper's 12-layer configuration
 
@@ -40,7 +40,7 @@ The paper reports pixel ROC-AUC and PRO-AUC; delta is reproduction minus paper.
 | carpet | 0.97872 | 0.96 | +0.01872 | 0.94106 | 0.93 | +0.01106 |
 | grid | 0.97013 | 0.98 | -0.00987 | 0.90134 | 0.93 | -0.02866 |
 | leather | 0.98983 | 0.99 | -0.00017 | 0.97902 | 0.97 | +0.00902 |
-| tile | 0.67599 | 0.86 | -0.18401 | 0.47973 | 0.79 | -0.31027 |
+| tile | 0.89082 | 0.86 | +0.03082 | 0.77354 | 0.79 | -0.01646 |
 | wood | 0.92606 | 0.94 | -0.01394 | 0.77825 | 0.93 | -0.15175 |
 
 A zero timing value marks a smoke result produced before cumulative timing metadata was introduced.
