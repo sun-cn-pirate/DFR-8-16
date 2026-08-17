@@ -109,6 +109,22 @@ The command writes checkpoints and large visual artifacts below `outputs/`.
 Compact cross-category results are updated in `reports/dfr_mvtec_summary.csv`
 and `reports/dfr_mvtec_summary.md` after each completed category.
 
+## Reproduction results
+
+The full 15-category 700-epoch run is summarized in
+[`reports/dfr_mvtec_summary.md`](reports/dfr_mvtec_summary.md), with raw CSV
+metrics in [`reports/dfr_mvtec_summary.csv`](reports/dfr_mvtec_summary.csv).
+
+Large generated artifacts are still excluded from Git, but a compact set of
+one anomalous visualization per MVTec category is included for quick inspection:
+
+![DFR MVTec AD visual examples](docs/assets/visual_examples/mvtec_visual_examples.jpg)
+
+The individual compressed examples and their local source paths are listed in
+[`docs/assets/visual_examples/README.md`](docs/assets/visual_examples/README.md).
+They are derived from MVTec AD test images and are included only as small
+non-commercial research examples under the dataset terms.
+
 Paper: Unsupervised anomaly segmentation via deep feature reconstruction  | **[Neurocomputing]**[`pdf`](https://www.sciencedirect.com/science/article/pii/S0925231220317951)[`code`](https://github.com/YoungGod/DFR) | **arxive preprint**[`pdf`](https://arxiv.org/abs/2012.07122)
 
 Introduction: Automatic detecting anomalous regions in images of objects or textures without priors of the anomalies is challenging, especially when the anomalies appear in very small areas of the images, making difficult-to-detect visual variations, such as defects on manufacturing products.
@@ -117,8 +133,9 @@ Introduction: Automatic detecting anomalous regions in images of objects or text
 	Leveraging these descriptive regional features, we then design a deep yet efficient convolutional autoencoder and detect anomalous regions within images via fast feature reconstruction.
 	Our method is simple yet effective and efficient. It advances the state-of-the-art performances on several benchmark datasets and shows great potential for real applications.
 	
-# Qualitative results
-![image](https://github.com/YoungGod/DFR/tree/master/figs/seg-quality-l12.jpg)
+# Upstream qualitative results
+
+![Upstream qualitative results](figs/seg-quality-l12.jpg)
 
 # Citation
 If you find something useful, wellcome to cite our paper:

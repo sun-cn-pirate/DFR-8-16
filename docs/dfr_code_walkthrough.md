@@ -135,7 +135,8 @@ feature extractor, and PCA is used only to choose the latent dimension.
 - Each MVTec category gets its own CAE and latent dimension. VGG19 and the
   hyperparameters are shared; the learned checkpoint is category-specific.
 - Large artifacts remain local under `outputs/` and are ignored by Git.
-  The repository stores code, configs, compact reports, and validation metadata.
+  The repository stores code, configs, compact reports, validation metadata, and
+  a small curated set of compressed visual examples.
 
 ## Full-run result snapshot
 
@@ -149,3 +150,11 @@ NVIDIA GeForce RTX 4090 in the `dfr` Conda environment. All 15 categories reache
 - pixel ROC-AUC: `0.94746`
 - PRO-AUC: `0.89045`
 - best IoU: `0.32075`
+
+## Visual examples
+
+The full `outputs/Results` tree contains thousands of generated maps and stays
+local. For GitHub browsing, one anomalous visualization per MVTec category was
+selected and compressed under `docs/assets/visual_examples/`.
+
+![DFR MVTec AD visual examples](assets/visual_examples/mvtec_visual_examples.jpg)

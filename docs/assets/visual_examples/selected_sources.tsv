@@ -1,0 +1,16 @@
+category	selected_source	published_file
+bottle	outputs/Results/bottle/AnoSegDFR(BN)_vgg19_l12_d197_s4_k4_nearest/gt_pred_score_map/contamination-012.png	docs/assets/visual_examples/bottle.jpg
+cable	outputs/Results/cable/AnoSegDFR(BN)_vgg19_l12_d669_s4_k4_nearest/gt_pred_score_map/bent_wire-009.png	docs/assets/visual_examples/cable.jpg
+capsule	outputs/Results/capsule/AnoSegDFR(BN)_vgg19_l12_d262_s4_k4_nearest/gt_pred_score_map/gt_crack-011.png	docs/assets/visual_examples/capsule.jpg
+hazelnut	outputs/Results/hazelnut/AnoSegDFR(BN)_vgg19_l12_d514_s4_k4_nearest/gt_pred_score_map/crack-010.png	docs/assets/visual_examples/hazelnut.jpg
+metal_nut	outputs/Results/metal_nut/AnoSegDFR(BN)_vgg19_l12_d532_s4_k4_nearest/gt_pred_score_map/scratch-000.png	docs/assets/visual_examples/metal_nut.jpg
+pill	outputs/Results/pill/AnoSegDFR(BN)_vgg19_l12_d396_s4_k4_nearest/gt_pred_score_map/pill_type-006.png	docs/assets/visual_examples/pill.jpg
+screw	outputs/Results/screw/AnoSegDFR(BN)_vgg19_l12_d433_s4_k4_nearest/gt_pred_score_map/manipulated_front-002.png	docs/assets/visual_examples/screw.jpg
+toothbrush	outputs/Results/toothbrush/AnoSegDFR(BN)_vgg19_l12_d339_s4_k4_nearest/gt_pred_score_map/defective-010.png	docs/assets/visual_examples/toothbrush.jpg
+transistor	outputs/Results/transistor/AnoSegDFR(BN)_vgg19_l12_d407_s4_k4_nearest/gt_pred_score_map/misplaced-002.png	docs/assets/visual_examples/transistor.jpg
+zipper	outputs/Results/zipper/AnoSegDFR(BN)_vgg19_l12_d128_s4_k4_nearest/gt_pred_score_map/fabric_interior-012.png	docs/assets/visual_examples/zipper.jpg
+carpet	outputs/Results/carpet/AnoSegDFR(BN)_vgg19_l12_d383_s4_k4_nearest/gt_pred_score_map/hole-010.png	docs/assets/visual_examples/carpet.jpg
+grid	outputs/Results/grid/AnoSegDFR(BN)_vgg19_l12_d209_s4_k4_nearest/gt_pred_score_map/broken-004.png	docs/assets/visual_examples/grid.jpg
+leather	outputs/Results/leather/AnoSegDFR(BN)_vgg19_l12_d432_s4_k4_nearest/gt_pred_score_map/color-004.png	docs/assets/visual_examples/leather.jpg
+tile	outputs/Results/tile/AnoSegDFR(BN)_vgg19_l12_d633_s4_k4_nearest/gt_pred_score_map/crack-001.png	docs/assets/visual_examples/tile.jpg
+wood	outputs/Results/wood/AnoSegDFR(BN)_vgg19_l12_d437_s4_k4_nearest/gt_pred_score_map/hole-006.png	docs/assets/visual_examples/wood.jpg
