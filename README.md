@@ -74,6 +74,7 @@ GitHub 上已经提交的是可复现代码、紧凑指标报告和精选异常�
 | 内容 | 仓库位置 |
 |---|---|
 | 15 类汇总指标 | `reports/dfr_mvtec_summary.md`、`reports/dfr_mvtec_summary.csv` |
+| 15 类推理权重 | [Hugging Face: sun-cn/DFR-MVTec-AD-f1-12](https://huggingface.co/sun-cn/DFR-MVTec-AD-f1-12) |
 | 15 类精选异常图 | `docs/assets/visual_examples/` |
 | 代码阅读指南 | `docs/dfr_code_walkthrough.md` |
 | 数据和环境校验 | `reports/mvtec_validation.json`、`reports/environment.json` |
@@ -101,6 +102,32 @@ outputs/models/bottle/AnoSegDFR(BN)_vgg19_l12_d197_s4_k4_nearest/model/autoencod
 
 `data/`、`outputs/`、预训练权重、缓存和虚拟环境由 `.gitignore` 排除。
 这是有意的：GitHub 保存代码与紧凑报告，服务器保存可重新生成的大型实验产物。
+
+### 从 Hugging Face 下载权重
+
+15 类 `f{1:12}` CAE 推理权重和各类别的 `n_dim.npy` 已发布到
+[sun-cn/DFR-MVTec-AD-f1-12](https://huggingface.co/sun-cn/DFR-MVTec-AD-f1-12)。
+这些文件可以直接加载进行推理，不需要重新训练；不包含 Adam optimizer，因此不用于
+精确断点续训。
+
+下载全部类别：
+
+```bash
+conda run -n dfr hf download sun-cn/DFR-MVTec-AD-f1-12 \
+  --local-dir DFR-MVTec-AD-f1-12
+```
+
+只下载一个类别：
+
+```bash
+conda run -n dfr hf download sun-cn/DFR-MVTec-AD-f1-12 \
+  --include "weights/bottle/*" \
+  --local-dir DFR-MVTec-AD-f1-12
+```
+
+模型仓库的 README 提供了完整 PyTorch 加载示例和 SHA-256 校验清单。执行完整
+DFR 推理仍需要本 GitHub 仓库代码和 ImageNet 预训练 VGG19；评估 MVTec 指标或
+重新生成异常图时还需要本地 MVTec AD 数据集。
 
 ## 复现配置
 
